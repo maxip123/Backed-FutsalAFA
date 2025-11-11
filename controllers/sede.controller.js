@@ -1,7 +1,7 @@
 const {connection} = require('../config/database');
 
 const GetAllSedes = (req, res) => {
-    const query = 'SELECT * FROM sede';
+    const query = 'SELECT * FROM sede WHERE activo_sede = 1';
     connection.query(query, (error, results) => {
         if (error) {
             return res.status(500).json({error: 'Error en la consulta de sedes'});
@@ -12,7 +12,7 @@ const GetAllSedes = (req, res) => {
 
 const GetSedeById = (req, res) => {
     const { id } = req.params;
-    const query = 'SELECT * FROM sede WHERE id_sede = ?';
+    const query = 'SELECT * FROM sede WHERE id_sede = ? AND activo_sede = 1';
     connection.query(query, [id], (error, results) => {
         if (error) {
             return res.status(500).json({error: 'Error en la consulta de sede'});

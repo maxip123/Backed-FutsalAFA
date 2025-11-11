@@ -11,7 +11,8 @@ const routeJugador = require('./routes/jugador.routes');
 const routePartido = require('./routes/partido.routes');
 const routeSede = require('./routes/sede.routes');
 const routeUsuario = require('./routes/usuario.routes');
-
+const routeLogin = require('./routes/login.routes');
+const routerEquipo = require('./routes/equipo.routes');
 
 dotenv.config();
 
@@ -27,6 +28,8 @@ app.use('/api/jugador',routeJugador);
 app.use('/api/partido',routePartido);
 app.use('/api/sede',routeSede);
 app.use('/api/usuario',routeUsuario);
+app.use('/api/login', routeLogin);
+app.use('/api/equipo', routerEquipo);
 
 app.get("/",(req,res)=>{
     res.send(" Backend Futsal AFA funcionando correctamente")
