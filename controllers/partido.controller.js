@@ -1,6 +1,9 @@
 const {connection} = require('../config/database');
 
 const GetAllPartidos = (req, res) => {
+    const qr=req.query;
+    const tipo=qr.tipo;
+    
     const query = `
         SELECT p.*, 
                s.nombre_sede, 
@@ -8,15 +11,15 @@ const GetAllPartidos = (req, res) => {
                ev.nombre_equipo AS equipo_visitante,
                d.Nombre_division AS nombre_division
         FROM partido AS p
-        LEFT JOIN sede AS s ON s.id_sede = p.id_sede
-        LEFT JOIN equipo AS el ON el.id_equipo = p.id_equipo_local
-        LEFT JOIN equipo AS ev ON ev.id_equipo = p.id_equipo_visitante
-        LEFT JOIN division AS d ON d.id_division = p.id_division
+        INNER JOIN sede AS s ON s.id_sede = p.id_sede
+        INNER JOIN equipo AS el ON el.id_equipo = p.id_equipo_local
+        INNER JOIN equipo AS ev ON ev.id_equipo = p.id_equipo_visitante
+        INNER JOIN division AS d ON d.id_division = p.id_division
         WHERE p.activo_partido = 1 
-          AND (s.activo_sede = 1 OR s.id_sede IS NULL)
-          AND (el.activo_equipo = 1 OR el.id_equipo IS NULL)
-          AND (ev.activo_equipo = 1 OR ev.id_equipo IS NULL)
-          AND (d.activo_division = 1 OR d.id_division IS NULL)
+          AND s.activo_sede = 1
+          AND el.activo_equipo = 1
+          AND ev.activo_equipo = 1
+          AND d.activo_division = 1
     `;
     connection.query(query, (error, results) => {
         if (error) {
@@ -35,15 +38,15 @@ const GetPartidoById = (req, res) => {
                ev.nombre_equipo AS equipo_visitante,
                d.Nombre_division AS nombre_division
         FROM partido AS p
-        LEFT JOIN sede AS s ON s.id_sede = p.id_sede
-        LEFT JOIN equipo AS el ON el.id_equipo = p.id_equipo_local
-        LEFT JOIN equipo AS ev ON ev.id_equipo = p.id_equipo_visitante
-        LEFT JOIN division AS d ON d.id_division = p.id_division
+        INNER JOIN sede AS s ON s.id_sede = p.id_sede
+        INNER JOIN equipo AS el ON el.id_equipo = p.id_equipo_local
+        INNER JOIN equipo AS ev ON ev.id_equipo = p.id_equipo_visitante
+        INNER JOIN division AS d ON d.id_division = p.id_division
         WHERE p.id_partido = ? AND p.activo_partido = 1
-          AND (s.activo_sede = 1 OR s.id_sede IS NULL)
-          AND (el.activo_equipo = 1 OR el.id_equipo IS NULL)
-          AND (ev.activo_equipo = 1 OR ev.id_equipo IS NULL)
-          AND (d.activo_division = 1 OR d.id_division IS NULL)
+          AND s.activo_sede = 1
+          AND el.activo_equipo = 1
+          AND ev.activo_equipo = 1
+          AND d.activo_division = 1
     `;
     connection.query(query, [id], (error, results) => {
         if (error) {
@@ -57,11 +60,12 @@ const GetPartidoById = (req, res) => {
 };
 
 const CreatePartido = (req, res) => {
-    const { fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, id_division, cancelado } = req.body;
-    const query = 'INSERT INTO partido (fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, id_division, cancelado) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
-    connection.query(query, [fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local || 0, goles_visitante || 0, id_division, cancelado || 0], (error, results) => {
+    const { fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, id_division, estado_partido } = req.body;
+    const query = 'INSERT INTO partido (fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, id_division, estado_partido) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+    connection.query(query, [fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local || 0, goles_visitante || 0, id_division, estado_partido || 0], (error, results) => {
         if (error) {
-            return res.status(500).json({error: 'Error al crear el partido'});
+            console.error('Error al crear partido:', error);
+            return res.status(500).json({error: 'Error al crear el partido', details: error.message});
         }
         res.status(201).json({
             id_partido: results.insertId, 
@@ -72,18 +76,19 @@ const CreatePartido = (req, res) => {
             goles_local: goles_local || 0, 
             goles_visitante: goles_visitante || 0, 
             id_division, 
-            cancelado: cancelado || 0
+            estado_partido: estado_partido || 0
         });
     });
 };
 
 const UpdatePartido = (req, res) => {
     const { id } = req.params;
-    const { fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, id_division, cancelado } = req.body;
-    const query = 'UPDATE partido SET fecha_partido = ?, id_sede = ?, id_equipo_local = ?, id_equipo_visitante = ?, goles_local = ?, goles_visitante = ?, id_division = ?, cancelado = ? WHERE id_partido = ?';
-    connection.query(query, [fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, id_division, cancelado, id], (error, results) => {
+    const { fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, id_division, estado_partido } = req.body;
+    const query = 'UPDATE partido SET fecha_partido = ?, id_sede = ?, id_equipo_local = ?, id_equipo_visitante = ?, goles_local = ?, goles_visitante = ?, id_division = ?, estado_partido = ? WHERE id_partido = ?';
+    connection.query(query, [fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, id_division, estado_partido, id], (error, results) => {
         if (error) {
-            return res.status(500).json({error: 'Error al actualizar el partido'});
+            console.error('Error al actualizar partido:', error);
+            return res.status(500).json({error: 'Error al actualizar el partido', details: error.message});
         }
         if (results.affectedRows === 0) {
             return res.status(404).json({error: 'Partido no encontrado'});
@@ -97,7 +102,7 @@ const UpdatePartido = (req, res) => {
             goles_local, 
             goles_visitante, 
             id_division, 
-            cancelado
+            estado_partido
         });
     });
 };

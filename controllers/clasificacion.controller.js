@@ -6,10 +6,9 @@ const GetAllClasificaciones = (req, res) => {
                e.nombre_equipo, 
                d.Nombre_division AS nombre_division
         FROM clasificacion AS c
-        LEFT JOIN equipo AS e ON e.id_equipo = c.id_equipo
-        LEFT JOIN division AS d ON d.id_division = c.id_division
-        WHERE (e.activo_equipo = 1 OR e.id_equipo IS NULL)
-          AND (d.activo_division = 1 OR d.id_division IS NULL)
+        INNER JOIN equipo AS e ON e.id_equipo = c.id_equipo
+        INNER JOIN division AS d ON d.id_division = c.id_division
+        WHERE e.activo_equipo = 1 AND d.activo_division = 1
         ORDER BY c.id_division, c.puntos DESC, c.diferencia_goles DESC
     `;
     connection.query(query, (error, results) => {
@@ -27,11 +26,11 @@ const GetClasificacionById = (req, res) => {
                e.nombre_equipo, 
                d.Nombre_division AS nombre_division
         FROM clasificacion AS c
-        LEFT JOIN equipo AS e ON e.id_equipo = c.id_equipo
-        LEFT JOIN division AS d ON d.id_division = c.id_division
+        INNER JOIN equipo AS e ON e.id_equipo = c.id_equipo
+        INNER JOIN division AS d ON d.id_division = c.id_division
         WHERE c.id_clasificacion = ?
-          AND (e.activo_equipo = 1 OR e.id_equipo IS NULL)
-          AND (d.activo_division = 1 OR d.id_division IS NULL)
+          AND e.activo_equipo = 1
+          AND d.activo_division = 1
     `;
     connection.query(query, [id], (error, results) => {
         if (error) {
@@ -51,11 +50,11 @@ const GetClasificacionByDivision = (req, res) => {
                e.nombre_equipo, 
                d.Nombre_division AS nombre_division
         FROM clasificacion AS c
-        LEFT JOIN equipo AS e ON e.id_equipo = c.id_equipo
-        LEFT JOIN division AS d ON d.id_division = c.id_division
+        INNER JOIN equipo AS e ON e.id_equipo = c.id_equipo
+        INNER JOIN division AS d ON d.id_division = c.id_division
         WHERE c.id_division = ?
-          AND (e.activo_equipo = 1 OR e.id_equipo IS NULL)
-          AND (d.activo_division = 1 OR d.id_division IS NULL)
+          AND e.activo_equipo = 1
+          AND d.activo_division = 1
         ORDER BY c.puntos DESC, c.diferencia_goles DESC
     `;
     connection.query(query, [id_division], (error, results) => {
@@ -63,29 +62,6 @@ const GetClasificacionByDivision = (req, res) => {
             return res.status(500).json({error: 'Error al obtener la clasificación por división'});
         }
         res.status(200).json(results);
-    });
-};
-
-const CreateClasificacion = (req, res) => {
-    const { id_equipo, id_division, puntos, partidos_jugados, partidos_ganados, partidos_empatados, partidos_perdidos, goles_a_favor, goles_en_contra, diferencia_goles } = req.body;
-    const query = 'INSERT INTO clasificacion (id_equipo, id_division, puntos, partidos_jugados, partidos_ganados, partidos_empatados, partidos_perdidos, goles_a_favor, goles_en_contra, diferencia_goles) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-    connection.query(query, [id_equipo, id_division, puntos || 0, partidos_jugados || 0, partidos_ganados || 0, partidos_empatados || 0, partidos_perdidos || 0, goles_a_favor || 0, goles_en_contra || 0, diferencia_goles || 0], (error, results) => {
-        if (error) {
-            return res.status(500).json({error: 'Error al crear la clasificación'});
-        }
-        res.status(201).json({
-            id_clasificacion: results.insertId, 
-            id_equipo, 
-            id_division, 
-            puntos: puntos || 0, 
-            partidos_jugados: partidos_jugados || 0, 
-            partidos_ganados: partidos_ganados || 0, 
-            partidos_empatados: partidos_empatados || 0, 
-            partidos_perdidos: partidos_perdidos || 0, 
-            goles_a_favor: goles_a_favor || 0, 
-            goles_en_contra: goles_en_contra || 0, 
-            diferencia_goles: diferencia_goles || 0
-        });
     });
 };
 
@@ -134,7 +110,6 @@ module.exports = {
     GetAllClasificaciones,
     GetClasificacionById,
     GetClasificacionByDivision,
-    CreateClasificacion,
     UpdateClasificacion,
     deleteClasificacion
 };
