@@ -1,5 +1,14 @@
 const express = require('express');
 const router = express.Router();
 
+const {GetAllDivisions, GetDivisionById, CreateDivision, UpdateDivision, deleteDivision, ResetDivision} = require('../controllers/division.controller');
+const { autenticarToken } = require('../Middleware/auth.middleware');
+
+router.get('/', GetAllDivisions);
+router.post('/:id/reset', autenticarToken, ResetDivision);
+router.get('/:id', GetDivisionById);
+router.post('/', autenticarToken, CreateDivision);
+router.put('/:id', autenticarToken, UpdateDivision);
+router.delete('/:id', autenticarToken, deleteDivision);
 
 module.exports = router;

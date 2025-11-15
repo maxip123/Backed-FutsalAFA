@@ -1,4 +1,12 @@
 const express = require('express');
 const router = express.Router();
+const { GetAllEquipos, GetEquipoById, CreateEquipo, UpdateEquipo, deleteEquipo } = require('../controllers/equipo.controller');
+const { autenticarToken } = require('../Middleware/auth.middleware');
+
+router.get('/', GetAllEquipos);
+router.get('/:id', GetEquipoById);
+router.post('/', autenticarToken, CreateEquipo);
+router.put('/:id', autenticarToken, UpdateEquipo);
+router.delete('/:id', autenticarToken, deleteEquipo);
 
 module.exports = router;

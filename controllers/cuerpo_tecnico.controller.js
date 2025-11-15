@@ -1,2 +1,155 @@
 const {connection} = require('../config/database');
 
+const GetAllCuerpoTecnico = (req, res) => {
+    const query = `
+        SELECT ct.*, e.nombre_equipo AS nombre_equipo
+        FROM cuerpo_tecnico AS ct
+        INNER JOIN equipo AS e ON e.id_equipo = ct.id_equipo
+        WHERE ct.activo_cuerpo_tecnico = 1 AND e.activo_equipo = 1
+    `;
+    connection.query(query, (error, results) => {
+        if (error) {
+            return res.status(500).json({error: 'Error al obtener el cuerpo técnico'});
+        }
+        res.status(200).json(results);
+    });
+}
+
+const GetCuerpoTecnicoById = (req, res) => {
+    const { id } = req.params;
+    const query = `
+        SELECT ct.*, e.nombre_equipo AS nombre_equipo
+        FROM cuerpo_tecnico AS ct
+        INNER JOIN equipo AS e ON e.id_equipo = ct.id_equipo
+        WHERE ct.id_cuerpo_tecnico = ? AND ct.activo_cuerpo_tecnico = 1 AND e.activo_equipo = 1
+    `;
+    connection.query(query, [id], (error, results) => {
+        if (error) {
+            return res.status(500).json({error: 'Error al obtener el cuerpo técnico'});
+        }
+        if (results.length === 0) {
+            return res.status(404).json({error: 'Cuerpo técnico no encontrado'});
+        }
+        res.status(200).json(results[0]);
+    });
+}
+
+const CreateCuerpoTecnico = (req, res) => {
+    const { 
+        nombre_ct,
+        dni_ct,
+        id_equipo,
+        tarjetas_amarillas,
+        tarjetas_rojas
+    } = req.body;
+
+    if (!nombre_ct || !dni_ct || !id_equipo) {
+        return res.status(400).json({
+            error: 'Faltan campos requeridos',
+            details: 'Se requieren: nombre, DNI y equipo'
+        });
+    }
+
+    const query = `
+        INSERT INTO cuerpo_tecnico 
+        (cuerpo_tecnico_nombre, DNI_cuerpo_tecnico, id_equipo, tarjetas_amarillas, tarjetas_rojas) 
+        VALUES (?, ?, ?, ?, ?)
+    `;
+    
+    connection.query(
+        query, 
+        [nombre_ct, dni_ct, id_equipo, tarjetas_amarillas || 0, tarjetas_rojas || 0], 
+        (error, results) => {
+            if (error) {
+                console.error('Error al crear cuerpo técnico:', error);
+                return res.status(500).json({
+                    error: 'Error al crear el cuerpo técnico',
+                    details: error.message
+                });
+            }
+            res.status(201).json({
+                id_cuerpo_tecnico: results.insertId, 
+                cuerpo_tecnico_nombre: nombre_ct,
+                DNI_cuerpo_tecnico: dni_ct, 
+                id_equipo,
+                tarjetas_amarillas: tarjetas_amarillas || 0,
+                tarjetas_rojas: tarjetas_rojas || 0
+            });
+        }
+    );
+};
+
+const UpdateCuerpoTecnico = (req, res) => {
+    const { id } = req.params;
+    
+    const { 
+        nombre_ct,
+        dni_ct,
+        id_equipo,
+        tarjetas_amarillas,
+        tarjetas_rojas
+    } = req.body;
+
+    if (!nombre_ct || !dni_ct || !id_equipo) {
+        return res.status(400).json({
+            error: 'Faltan campos requeridos',
+            details: 'Se requieren: nombre, DNI y equipo'
+        });
+    }
+
+    const query = `
+        UPDATE cuerpo_tecnico 
+        SET cuerpo_tecnico_nombre = ?, 
+            DNI_cuerpo_tecnico = ?, 
+            id_equipo = ?,
+            tarjetas_amarillas = ?,
+            tarjetas_rojas = ?
+        WHERE id_cuerpo_tecnico = ?
+    `;
+    
+    connection.query(
+        query, 
+        [nombre_ct, dni_ct, id_equipo, tarjetas_amarillas || 0, tarjetas_rojas || 0, id], 
+        (error, results) => {
+            if (error) {
+                console.error('Error al actualizar cuerpo técnico:', error);
+                return res.status(500).json({
+                    error: 'Error al actualizar el cuerpo técnico',
+                    details: error.message
+                });
+            }
+            if (results.affectedRows === 0) {
+                return res.status(404).json({error: 'Cuerpo técnico no encontrado'});
+            }
+            res.status(200).json({
+                id_cuerpo_tecnico: id, 
+                cuerpo_tecnico_nombre: nombre_ct,
+                DNI_cuerpo_tecnico: dni_ct, 
+                id_equipo,
+                tarjetas_amarillas: tarjetas_amarillas || 0,
+                tarjetas_rojas: tarjetas_rojas || 0
+            });
+        }
+    );
+}
+
+const deleteCuerpoTecnico = (req, res) => {
+    const { id } = req.params;
+    const query = 'UPDATE cuerpo_tecnico SET activo_cuerpo_tecnico = 0 WHERE id_cuerpo_tecnico = ?';
+    connection.query(query, [id], (error, results) => {
+        if (error) {
+            return res.status(500).json({error: 'Error al eliminar el cuerpo técnico'});
+        }
+        if (results.affectedRows === 0) {
+            return res.status(404).json({error: 'Cuerpo técnico no encontrado'});
+        }
+        res.status(200).json({message: 'Cuerpo técnico eliminado correctamente'});
+    });
+};
+module.exports = {
+    GetAllCuerpoTecnico,
+    GetCuerpoTecnicoById,
+    CreateCuerpoTecnico,
+    UpdateCuerpoTecnico,
+    deleteCuerpoTecnico
+};

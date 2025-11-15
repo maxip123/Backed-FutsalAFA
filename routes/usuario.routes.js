@@ -1,4 +1,14 @@
 const express = require('express');
 const router = express.Router();
 
+const { GetAllUsuarios, GetUsuarioById, CreateUsuario, UpdateUsuario, deleteUsuario } = require('../controllers/usuario.controller');
+const { autenticarToken } = require('../Middleware/auth.middleware');
+
+
+router.get('/', GetAllUsuarios);
+router.get('/:id', GetUsuarioById);
+router.post('/', autenticarToken, CreateUsuario);
+router.put('/:id', autenticarToken, UpdateUsuario);
+router.delete('/:id', autenticarToken, deleteUsuario);
+
 module.exports = router;
