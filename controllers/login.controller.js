@@ -35,7 +35,8 @@ const login = (req, res) => {
             }
             
             const secret = process.env.JWT_SECRET || 'secret';
-            const token = jwt.sign({ id: user.id_usuario }, secret, { expiresIn: '1h' });
+            // Token válido por 24 horas
+            const token = jwt.sign({ id: user.id_usuario }, secret, { expiresIn: '24h' });
             console.log('Login successful for:', usuario_mail);
             return res.status(200).json({ token });
         } catch (e) {

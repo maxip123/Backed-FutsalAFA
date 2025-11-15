@@ -113,15 +113,41 @@ const UpdateEquipo = (req, res) => {
 
 const deleteEquipo = (req, res) => {
     const { id } = req.params;
-    const query = 'UPDATE equipo SET activo_equipo = 0 WHERE id_equipo = ?';
-    connection.query(query, [id], (error, results) => {
-        if (error) {
-            return res.status(500).json({error: 'Error al eliminar el equipo'});
+
+    // Usamos transacción para asegurarnos que la clasificación también se marque como inactiva
+    connection.beginTransaction(err => {
+        if (err) {
+            console.error('Error iniciando transacción:', err);
+            return res.status(500).json({ error: 'Error al iniciar la operación' });
         }
-        if (results.affectedRows === 0) {
-            return res.status(404).json({error: 'Equipo no encontrado'});
-        }
-        res.status(200).json({message: 'Equipo eliminado correctamente'});
+
+        const q1 = 'UPDATE equipo SET activo_equipo = 0 WHERE id_equipo = ?';
+        connection.query(q1, [id], (error, results) => {
+            if (error) {
+                console.error('Error al actualizar equipo:', error);
+                return connection.rollback(() => res.status(500).json({ error: 'Error al eliminar el equipo', details: error.message }));
+            }
+            if (results.affectedRows === 0) {
+                return connection.rollback(() => res.status(404).json({ error: 'Equipo no encontrado' }));
+            }
+
+            // Marcar la clasificación relacionada como inactiva (soft delete)
+            const q2 = 'UPDATE clasificacion SET activo_clasificacion = 0 WHERE id_equipo = ?';
+            connection.query(q2, [id], (error2) => {
+                if (error2) {
+                    console.error('Error al actualizar clasificación:', error2);
+                    return connection.rollback(() => res.status(500).json({ error: 'Error al actualizar clasificación', details: error2.message }));
+                }
+
+                connection.commit(commitErr => {
+                    if (commitErr) {
+                        console.error('Error al confirmar transacción:', commitErr);
+                        return connection.rollback(() => res.status(500).json({ error: 'Error al finalizar la operación', details: commitErr.message }));
+                    }
+                    res.status(200).json({ message: 'Equipo y clasificación marcados como inactivos correctamente' });
+                });
+            });
+        });
     });
 }
 module.exports = {

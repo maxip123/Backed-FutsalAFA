@@ -37,6 +37,7 @@ const CreateJugador = (req, res) => {
     const { 
         nombre_jugador,
         dni_jugador,
+        fecha_nacimiento,
         id_equipo,
         goles = 0,
         tarjetas_amarillas = 0,
@@ -52,13 +53,13 @@ const CreateJugador = (req, res) => {
 
     const query = `
         INSERT INTO jugador 
-        (jugador_nombre, DNI_jugador, id_equipo, goles, tarjetas_amarillas, tarjetas_rojas) 
-        VALUES (?, ?, ?, ?, ?, ?)
+        (jugador_nombre, DNI_jugador, fecha_nac, id_equipo, goles, tarjetas_amarillas, tarjetas_rojas) 
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
     
     connection.query(
         query, 
-        [nombre_jugador, dni_jugador, id_equipo, goles, tarjetas_amarillas, tarjetas_rojas], 
+        [nombre_jugador, dni_jugador, fecha_nacimiento || null, id_equipo, goles, tarjetas_amarillas, tarjetas_rojas], 
         (error, results) => {
             if (error) {
                 console.error('Error al crear jugador:', error);
@@ -71,6 +72,7 @@ const CreateJugador = (req, res) => {
                 id_jugador: results.insertId,
                 jugador_nombre: nombre_jugador,
                 DNI_jugador: dni_jugador,
+                fecha_nac: fecha_nacimiento || null,
                 id_equipo,
                 goles,
                 tarjetas_amarillas,
@@ -86,6 +88,7 @@ const UpdateJugador = (req, res) => {
     const { 
         nombre_jugador,
         dni_jugador,
+        fecha_nacimiento,
         id_equipo,
         goles,
         tarjetas_amarillas,
@@ -103,6 +106,7 @@ const UpdateJugador = (req, res) => {
         UPDATE jugador 
         SET jugador_nombre = ?, 
             DNI_jugador = ?, 
+            fecha_nac = ?,
             id_equipo = ?,
             goles = ?,
             tarjetas_amarillas = ?,
@@ -112,7 +116,7 @@ const UpdateJugador = (req, res) => {
     
     connection.query(
         query, 
-        [nombre_jugador, dni_jugador, id_equipo, goles || 0, tarjetas_amarillas || 0, tarjetas_rojas || 0, id], 
+        [nombre_jugador, dni_jugador, fecha_nacimiento || null, id_equipo, goles || 0, tarjetas_amarillas || 0, tarjetas_rojas || 0, id], 
         (error, results) => {
             if (error) {
                 console.error('Error al actualizar jugador:', error);
@@ -128,6 +132,7 @@ const UpdateJugador = (req, res) => {
                 id_jugador: id,
                 jugador_nombre: nombre_jugador,
                 DNI_jugador: dni_jugador,
+                fecha_nac: fecha_nacimiento || null,
                 id_equipo,
                 goles: goles || 0,
                 tarjetas_amarillas: tarjetas_amarillas || 0,

@@ -59,6 +59,33 @@ const GetPartidoById = (req, res) => {
     });
 };
 
+
+const GetPartidoByState = (req, res) => {
+    const query = `
+        SELECT p.*, 
+               s.nombre_sede,
+               el.nombre_equipo AS equipo_local,
+               ev.nombre_equipo AS equipo_visitante,
+               d.Nombre_division AS nombre_division
+        FROM partido AS p
+        INNER JOIN sede AS s ON s.id_sede = p.id_sede
+        INNER JOIN equipo AS el ON el.id_equipo = p.id_equipo_local
+        INNER JOIN equipo AS ev ON ev.id_equipo = p.id_equipo_visitante
+        INNER JOIN division AS d ON d.id_division = p.id_division
+        WHERE p.estado_partido = 0 AND p.activo_partido = 1
+          AND s.activo_sede = 1
+          AND el.activo_equipo = 1
+          AND ev.activo_equipo = 1
+          AND d.activo_division = 1
+    `;
+    connection.query(query, (error, results) => {
+        if (error) {
+            return res.status(500).json({error: 'Error al obtener los partidos por disputarse'});
+        }
+        res.status(200).json(results);
+    });
+};  
+
 const CreatePartido = (req, res) => {
     const { fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, id_division, estado_partido } = req.body;
     const query = 'INSERT INTO partido (fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, id_division, estado_partido) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
@@ -124,6 +151,7 @@ const deletePartido = (req, res) => {
 module.exports = {
     GetAllPartidos,
     GetPartidoById,
+    GetPartidoByState,
     CreatePartido,
     UpdatePartido,
     deletePartido

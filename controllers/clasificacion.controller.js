@@ -92,24 +92,12 @@ const UpdateClasificacion = (req, res) => {
     });
 };
 
-const deleteClasificacion = (req, res) => {
-    const { id } = req.params;
-    const query = 'DELETE FROM clasificacion WHERE id_clasificacion = ?';
-    connection.query(query, [id], (error, results) => {
-        if (error) {
-            return res.status(500).json({error: 'Error al eliminar la clasificación'});
-        }
-        if (results.affectedRows === 0) {
-            return res.status(404).json({error: 'Clasificación no encontrada'});
-        }
-        res.status(200).json({message: 'Clasificación eliminada correctamente'});
-    });
-};
+
 
 module.exports = {
     GetAllClasificaciones,
     GetClasificacionById,
     GetClasificacionByDivision,
     UpdateClasificacion,
-    deleteClasificacion
+
 };
