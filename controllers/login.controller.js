@@ -35,10 +35,13 @@ const login = (req, res) => {
             }
             
             const secret = process.env.JWT_SECRET || 'secret';
+            // Incluir flag administrador en el payload para poder autorizar en middleware
+            const payload = { id: user.id_usuario, administrador: !!user.administrador };
             // Token válido por 24 horas
-            const token = jwt.sign({ id: user.id_usuario }, secret, { expiresIn: '24h' });
+            const token = jwt.sign(payload, secret, { expiresIn: '24h' });
             console.log('Login successful for:', usuario_mail);
-            return res.status(200).json({ token });
+            // Devolvemos token y también la información mínima del usuario (incluyendo administrador)
+            return res.status(200).json({ token, administrador: !!user.administrador, usuario: { id: user.id_usuario, usuario_nombre: user.usuario_nombre, usuario_mail: user.usuario_mail } });
         } catch (e) {
             console.error('Login compare error:', e);
             return res.status(500).json({ error: 'Error interno del servidor' });

@@ -29,6 +29,8 @@ const GetAllPartidos = (req, res) => {
     });
 };
 
+
+
 const GetPartidoById = (req, res) => {
     const { id } = req.params;
     const query = `
