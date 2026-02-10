@@ -1,9 +1,9 @@
-const {connection} = require('../config/database');
+const { connection } = require('../config/database');
 
 const GetAllPartidos = (req, res) => {
-    const qr=req.query;
-    const tipo=qr.tipo;
-    
+    const qr = req.query;
+    const tipo = qr.tipo;
+
     const query = `
         SELECT p.*, 
                s.nombre_sede, 
@@ -23,11 +23,13 @@ const GetAllPartidos = (req, res) => {
     `;
     connection.query(query, (error, results) => {
         if (error) {
-            return res.status(500).json({error: 'Error al obtener los partidos'});
+            return res.status(500).json({ error: 'Error al obtener los partidos' });
         }
         res.status(200).json(results);
     });
 };
+
+
 
 const GetPartidoById = (req, res) => {
     const { id } = req.params;
@@ -50,10 +52,10 @@ const GetPartidoById = (req, res) => {
     `;
     connection.query(query, [id], (error, results) => {
         if (error) {
-            return res.status(500).json({error: 'Error al obtener el partido'});
+            return res.status(500).json({ error: 'Error al obtener el partido' });
         }
         if (results.length === 0) {
-            return res.status(404).json({error: 'Partido no encontrado'});
+            return res.status(404).json({ error: 'Partido no encontrado' });
         }
         res.status(200).json(results[0]);
     });
@@ -80,29 +82,31 @@ const GetPartidoByState = (req, res) => {
     `;
     connection.query(query, (error, results) => {
         if (error) {
-            return res.status(500).json({error: 'Error al obtener los partidos por disputarse'});
+            return res.status(500).json({ error: 'Error al obtener los partidos por disputarse' });
         }
         res.status(200).json(results);
     });
-};  
+};
 
 const CreatePartido = (req, res) => {
-    const { fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, id_division, estado_partido } = req.body;
-    const query = 'INSERT INTO partido (fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, id_division, estado_partido) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
-    connection.query(query, [fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local || 0, goles_visitante || 0, id_division, estado_partido || 0], (error, results) => {
+    const { fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, id_division, nombre_partido, afecta_clasificacion, estado_partido } = req.body;
+    const query = 'INSERT INTO partido (fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, id_division, nombre_partido, afecta_clasificacion, estado_partido) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    connection.query(query, [fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local || 0, goles_visitante || 0, id_division, nombre_partido || null, afecta_clasificacion ?? 1, estado_partido || 0], (error, results) => {
         if (error) {
             console.error('Error al crear partido:', error);
-            return res.status(500).json({error: 'Error al crear el partido', details: error.message});
+            return res.status(500).json({ error: 'Error al crear el partido', details: error.message });
         }
         res.status(201).json({
-            id_partido: results.insertId, 
-            fecha_partido, 
-            id_sede, 
-            id_equipo_local, 
-            id_equipo_visitante, 
-            goles_local: goles_local || 0, 
-            goles_visitante: goles_visitante || 0, 
-            id_division, 
+            id_partido: results.insertId,
+            fecha_partido,
+            id_sede,
+            id_equipo_local,
+            id_equipo_visitante,
+            goles_local: goles_local || 0,
+            goles_visitante: goles_visitante || 0,
+            id_division,
+            nombre_partido: nombre_partido || null,
+            afecta_clasificacion: afecta_clasificacion ?? 1,
             estado_partido: estado_partido || 0
         });
     });
@@ -110,25 +114,27 @@ const CreatePartido = (req, res) => {
 
 const UpdatePartido = (req, res) => {
     const { id } = req.params;
-    const { fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, id_division, estado_partido } = req.body;
-    const query = 'UPDATE partido SET fecha_partido = ?, id_sede = ?, id_equipo_local = ?, id_equipo_visitante = ?, goles_local = ?, goles_visitante = ?, id_division = ?, estado_partido = ? WHERE id_partido = ?';
-    connection.query(query, [fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, id_division, estado_partido, id], (error, results) => {
+    const { fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, id_division, nombre_partido, afecta_clasificacion, estado_partido } = req.body;
+    const query = 'UPDATE partido SET fecha_partido = ?, id_sede = ?, id_equipo_local = ?, id_equipo_visitante = ?, goles_local = ?, goles_visitante = ?, id_division = ?, nombre_partido = ?, afecta_clasificacion = ?, estado_partido = ? WHERE id_partido = ?';
+    connection.query(query, [fecha_partido, id_sede, id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, id_division, nombre_partido || null, afecta_clasificacion ?? 1, estado_partido, id], (error, results) => {
         if (error) {
             console.error('Error al actualizar partido:', error);
-            return res.status(500).json({error: 'Error al actualizar el partido', details: error.message});
+            return res.status(500).json({ error: 'Error al actualizar el partido', details: error.message });
         }
         if (results.affectedRows === 0) {
-            return res.status(404).json({error: 'Partido no encontrado'});
+            return res.status(404).json({ error: 'Partido no encontrado' });
         }
         res.status(200).json({
-            id_partido: id, 
-            fecha_partido, 
-            id_sede, 
-            id_equipo_local, 
-            id_equipo_visitante, 
-            goles_local, 
-            goles_visitante, 
-            id_division, 
+            id_partido: id,
+            fecha_partido,
+            id_sede,
+            id_equipo_local,
+            id_equipo_visitante,
+            goles_local,
+            goles_visitante,
+            id_division,
+            nombre_partido: nombre_partido || null,
+            afecta_clasificacion: afecta_clasificacion ?? 1,
             estado_partido
         });
     });
@@ -139,12 +145,12 @@ const deletePartido = (req, res) => {
     const query = 'UPDATE partido SET activo_partido = 0 WHERE id_partido = ?';
     connection.query(query, [id], (error, results) => {
         if (error) {
-            return res.status(500).json({error: 'Error al eliminar el partido'});
+            return res.status(500).json({ error: 'Error al eliminar el partido' });
         }
         if (results.affectedRows === 0) {
-            return res.status(404).json({error: 'Partido no encontrado'});
+            return res.status(404).json({ error: 'Partido no encontrado' });
         }
-        res.status(200).json({message: 'Partido eliminado correctamente'});
+        res.status(200).json({ message: 'Partido eliminado correctamente' });
     });
 };
 

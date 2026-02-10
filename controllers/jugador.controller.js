@@ -56,10 +56,17 @@ const CreateJugador = (req, res) => {
         (jugador_nombre, DNI_jugador, fecha_nac, id_equipo, goles, tarjetas_amarillas, tarjetas_rojas) 
         VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
-    
+    // formatear fecha a formato MySQL (YYYY-MM-DD) para evitar errores con ISO strings
+    const formatToMySQLDate = (fecha) => {
+        if (!fecha) return null;
+        const d = new Date(fecha);
+        if (isNaN(d)) return null;
+        return d.toISOString().slice(0,10); // usa la parte de fecha en UTC
+    }
+
     connection.query(
         query, 
-        [nombre_jugador, dni_jugador, fecha_nacimiento || null, id_equipo, goles, tarjetas_amarillas, tarjetas_rojas], 
+        [nombre_jugador, dni_jugador, formatToMySQLDate(fecha_nacimiento) || null, id_equipo, goles, tarjetas_amarillas, tarjetas_rojas], 
         (error, results) => {
             if (error) {
                 console.error('Error al crear jugador:', error);
@@ -72,7 +79,7 @@ const CreateJugador = (req, res) => {
                 id_jugador: results.insertId,
                 jugador_nombre: nombre_jugador,
                 DNI_jugador: dni_jugador,
-                fecha_nac: fecha_nacimiento || null,
+                fecha_nac: formatToMySQLDate(fecha_nacimiento) || null,
                 id_equipo,
                 goles,
                 tarjetas_amarillas,
@@ -113,10 +120,17 @@ const UpdateJugador = (req, res) => {
             tarjetas_rojas = ?
         WHERE id_jugador = ?
     `;
-    
+    // formatear fecha a YYYY-MM-DD antes de enviarla a MySQL
+    const formatToMySQLDate = (fecha) => {
+        if (!fecha) return null;
+        const d = new Date(fecha);
+        if (isNaN(d)) return null;
+        return d.toISOString().slice(0,10);
+    }
+
     connection.query(
         query, 
-        [nombre_jugador, dni_jugador, fecha_nacimiento || null, id_equipo, goles || 0, tarjetas_amarillas || 0, tarjetas_rojas || 0, id], 
+        [nombre_jugador, dni_jugador, formatToMySQLDate(fecha_nacimiento) || null, id_equipo, goles || 0, tarjetas_amarillas || 0, tarjetas_rojas || 0, id], 
         (error, results) => {
             if (error) {
                 console.error('Error al actualizar jugador:', error);
