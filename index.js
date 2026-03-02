@@ -69,14 +69,16 @@ app.get("/", (req, res) => {
 
 const PORT = process.env.PORT || 8000
 
-app.listen(PORT, (err) => {
-    if (err) throw err
-    console.log("escuchando en el puerto " + PORT)
-})
+// Verificar que el pool puede conectarse a la DB antes de iniciar el servidor
+connection.getConnection((err, conn) => {
+    if (err) {
+        console.error('Error al conectar con la base de datos:', err.message);
+        process.exit(1);
+    }
+    console.log('Conectado a MySQL correctamente');
+    conn.release();
 
-
-
-connection.connect((err) => {
-    if (err) throw err
-    console.log("conectado a mi base de datos mysql")
-})
+    app.listen(PORT, () => {
+        console.log('Escuchando en el puerto ' + PORT);
+    });
+});

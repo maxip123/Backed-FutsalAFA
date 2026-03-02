@@ -1,11 +1,11 @@
-const {connection} = require('../config/database');
-const {hashPassword} = require('../utils/hash.utils');
+const { connection } = require('../config/database');
+const { hashPassword } = require('../utils/hash.utils');
 
 const GetAllUsuarios = (req, res) => {
-    const query = 'SELECT * FROM usuario WHERE activo_usuario = 1';
+    const query = 'SELECT id_usuario, usuario_nombre, usuario_mail, administrador, activo_usuario FROM usuario WHERE activo_usuario = 1';
     connection.query(query, (error, results) => {
         if (error) {
-            return res.status(500).json({error: 'Error al obtener los usuarios'});
+            return res.status(500).json({ error: 'Error al obtener los usuarios' });
         }
         res.status(200).json(results);
     }
@@ -17,10 +17,10 @@ const GetUsuarioById = (req, res) => {
     const query = 'SELECT * FROM usuario WHERE id_usuario = ? AND activo_usuario = 1';
     connection.query(query, [id], (error, results) => {
         if (error) {
-            return res.status(500).json({error: 'Error al obtener el usuario'});
+            return res.status(500).json({ error: 'Error al obtener el usuario' });
         }
         if (results.length === 0) {
-            return res.status(404).json({error: 'Usuario no encontrado'});
+            return res.status(404).json({ error: 'Usuario no encontrado' });
         }
         res.status(200).json(results[0]);
     });
@@ -93,9 +93,9 @@ const CreateUsuario = (req, res) => {
 
 const UpdateUsuario = async (req, res) => {
     try {
-    const { id } = req.params;
-    const { usuario_nombre, usuario_mail, usuario_contrasena, administrador } = req.body;
-    const isAdmin = administrador ? 1 : 0;
+        const { id } = req.params;
+        const { usuario_nombre, usuario_mail, usuario_contrasena, administrador } = req.body;
+        const isAdmin = administrador ? 1 : 0;
 
         if (typeof usuario_contrasena !== 'undefined' && usuario_contrasena !== null) {
             const hashed = await hashPassword(usuario_contrasena);
@@ -103,12 +103,12 @@ const UpdateUsuario = async (req, res) => {
             connection.query(query, [usuario_nombre, usuario_mail, hashed, isAdmin, id], (error, results) => {
                 if (error) {
                     console.error('UpdateUsuario DB error:', error);
-                    return res.status(500).json({error: 'Error al actualizar el usuario', details: error.message});
+                    return res.status(500).json({ error: 'Error al actualizar el usuario', details: error.message });
                 }
                 if (results.affectedRows === 0) {
-                    return res.status(404).json({error: 'Usuario no encontrado'});
+                    return res.status(404).json({ error: 'Usuario no encontrado' });
                 }
-                return res.status(200).json({id, usuario_nombre, usuario_mail, administrador: !!isAdmin});
+                return res.status(200).json({ id, usuario_nombre, usuario_mail, administrador: !!isAdmin });
             });
         } else {
             // No actualizar contraseña
@@ -116,12 +116,12 @@ const UpdateUsuario = async (req, res) => {
             connection.query(query, [usuario_nombre, usuario_mail, isAdmin, id], (error, results) => {
                 if (error) {
                     console.error('UpdateUsuario DB error:', error);
-                    return res.status(500).json({error: 'Error al actualizar el usuario', details: error.message});
+                    return res.status(500).json({ error: 'Error al actualizar el usuario', details: error.message });
                 }
                 if (results.affectedRows === 0) {
-                    return res.status(404).json({error: 'Usuario no encontrado'});
+                    return res.status(404).json({ error: 'Usuario no encontrado' });
                 }
-                return res.status(200).json({id, usuario_nombre, usuario_mail, administrador: !!isAdmin});
+                return res.status(200).json({ id, usuario_nombre, usuario_mail, administrador: !!isAdmin });
             });
         }
     } catch (err) {
@@ -135,10 +135,10 @@ const deleteUsuario = (req, res) => {
     const query = 'UPDATE usuario SET activo_usuario = 0 WHERE id_usuario = ?';
     connection.query(query, [id], (error, results) => {
         if (error) {
-            return res.status(500).json({error: 'Error al eliminar el usuario'});
+            return res.status(500).json({ error: 'Error al eliminar el usuario' });
         }
         if (results.affectedRows === 0) {
-            return res.status(404).json({error: 'Usuario no encontrado'});
+            return res.status(404).json({ error: 'Usuario no encontrado' });
         }
         res.status(204).send();
     });

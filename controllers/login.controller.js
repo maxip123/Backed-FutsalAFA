@@ -1,9 +1,6 @@
 const { connection } = require('../config/database');
 const jwt = require('jsonwebtoken');
-const dotenv = require('dotenv');
 const { comparePasswords } = require('../utils/hash.utils');
-
-dotenv.config();
 
 const login = (req, res) => {
     const { usuario_mail, usuario_contrasena } = req.body;
@@ -34,7 +31,7 @@ const login = (req, res) => {
                 return res.status(401).json({ error: 'Contraseña incorrecta' });
             }
 
-            const secret = process.env.JWT_SECRET || 'secret';
+            const secret = process.env.JWT_SECRET;
             // Incluir flag administrador en el payload para poder autorizar en middleware
             const payload = { id: user.id_usuario, administrador: !!user.administrador };
             // Token válido por 30 días

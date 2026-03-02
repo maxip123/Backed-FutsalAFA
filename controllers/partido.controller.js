@@ -1,9 +1,6 @@
 const { connection } = require('../config/database');
 
 const GetAllPartidos = (req, res) => {
-    const qr = req.query;
-    const tipo = qr.tipo;
-
     const query = `
         SELECT p.*, 
                s.nombre_sede, 
