@@ -1,7 +1,4 @@
 const jwt = require('jsonwebtoken');
-const dotenv = require('dotenv');
-dotenv.config();
-const {connection} = require('../config/database');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -14,14 +11,14 @@ const autenticarToken = (req, res, next) => {
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) {
-            
+
             if (err.name === 'TokenExpiredError') {
                 return res.status(401).json({ error: 'Token expirado' });
             }
             return res.status(403).json({ error: 'Token no válido' });
         }
 
-        
+
         req.user = user;
         next();
     });

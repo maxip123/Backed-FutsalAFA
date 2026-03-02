@@ -1,4 +1,5 @@
-const {connection} = require('../config/database');
+const { connection } = require('../config/database');
+const { formatToMySQLDate } = require('../utils/date.utils');
 
 const GetAllJugadores = (req, res) => {
     const query = `
@@ -9,7 +10,7 @@ const GetAllJugadores = (req, res) => {
     `;
     connection.query(query, (error, results) => {
         if (error) {
-            return res.status(500).json({error: 'Error al obtener los jugadores'});
+            return res.status(500).json({ error: 'Error al obtener los jugadores' });
         }
         res.status(200).json(results);
     });
@@ -24,17 +25,17 @@ const GetJugadorById = (req, res) => {
     `;
     connection.query(query, [id], (error, results) => {
         if (error) {
-            return res.status(500).json({error: 'Error al obtener el jugador'});
+            return res.status(500).json({ error: 'Error al obtener el jugador' });
         }
         if (results.length === 0) {
-            return res.status(404).json({error: 'Jugador no encontrado'});
+            return res.status(404).json({ error: 'Jugador no encontrado' });
         }
         res.status(200).json(results[0]);
     });
 }
 
 const CreateJugador = (req, res) => {
-    const { 
+    const {
         nombre_jugador,
         dni_jugador,
         fecha_nacimiento,
@@ -56,17 +57,11 @@ const CreateJugador = (req, res) => {
         (jugador_nombre, DNI_jugador, fecha_nac, id_equipo, goles, tarjetas_amarillas, tarjetas_rojas) 
         VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
-    // formatear fecha a formato MySQL (YYYY-MM-DD) para evitar errores con ISO strings
-    const formatToMySQLDate = (fecha) => {
-        if (!fecha) return null;
-        const d = new Date(fecha);
-        if (isNaN(d)) return null;
-        return d.toISOString().slice(0,10); // usa la parte de fecha en UTC
-    }
+
 
     connection.query(
-        query, 
-        [nombre_jugador, dni_jugador, formatToMySQLDate(fecha_nacimiento) || null, id_equipo, goles, tarjetas_amarillas, tarjetas_rojas], 
+        query,
+        [nombre_jugador, dni_jugador, formatToMySQLDate(fecha_nacimiento) || null, id_equipo, goles, tarjetas_amarillas, tarjetas_rojas],
         (error, results) => {
             if (error) {
                 console.error('Error al crear jugador:', error);
@@ -91,8 +86,8 @@ const CreateJugador = (req, res) => {
 
 const UpdateJugador = (req, res) => {
     const { id } = req.params;
-    
-    const { 
+
+    const {
         nombre_jugador,
         dni_jugador,
         fecha_nacimiento,
@@ -120,17 +115,11 @@ const UpdateJugador = (req, res) => {
             tarjetas_rojas = ?
         WHERE id_jugador = ?
     `;
-    // formatear fecha a YYYY-MM-DD antes de enviarla a MySQL
-    const formatToMySQLDate = (fecha) => {
-        if (!fecha) return null;
-        const d = new Date(fecha);
-        if (isNaN(d)) return null;
-        return d.toISOString().slice(0,10);
-    }
+
 
     connection.query(
-        query, 
-        [nombre_jugador, dni_jugador, formatToMySQLDate(fecha_nacimiento) || null, id_equipo, goles || 0, tarjetas_amarillas || 0, tarjetas_rojas || 0, id], 
+        query,
+        [nombre_jugador, dni_jugador, formatToMySQLDate(fecha_nacimiento) || null, id_equipo, goles || 0, tarjetas_amarillas || 0, tarjetas_rojas || 0, id],
         (error, results) => {
             if (error) {
                 console.error('Error al actualizar jugador:', error);
@@ -140,7 +129,7 @@ const UpdateJugador = (req, res) => {
                 });
             }
             if (results.affectedRows === 0) {
-                return res.status(404).json({error: 'Jugador no encontrado'});
+                return res.status(404).json({ error: 'Jugador no encontrado' });
             }
             res.status(200).json({
                 id_jugador: id,
@@ -161,12 +150,12 @@ const deleteJugador = (req, res) => {
     const query = 'UPDATE jugador SET activo_jugador = 0 WHERE id_jugador = ?';
     connection.query(query, [id], (error, results) => {
         if (error) {
-            return res.status(500).json({error: 'Error al eliminar el jugador'});
+            return res.status(500).json({ error: 'Error al eliminar el jugador' });
         }
         if (results.affectedRows === 0) {
-            return res.status(404).json({error: 'Jugador no encontrado'});
+            return res.status(404).json({ error: 'Jugador no encontrado' });
         }
-        res.status(200).json({message: 'Jugador eliminado correctamente'});
+        res.status(200).json({ message: 'Jugador eliminado correctamente' });
     });
 }
 
