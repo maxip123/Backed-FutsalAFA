@@ -39,48 +39,58 @@ const CreateUsuario = (req, res) => {
     // Hashear contraseña antes de la transacción
     hashPassword(usuario_contrasena).then((hashedPassword) => {
         // Iniciar transacción con el mismo patrón usado en CreateEquipo
-        connection.beginTransaction((err) => {
-            if (err) {
-                console.error('Error al iniciar transacción:', err);
-                return res.status(500).json({ error: 'Error al iniciar transacción' });
-            }
+        connection.getConnection((err, conn) => {
+            if (err) return res.status(500).json({ error: 'Error al obtener conexión' });
 
-            // 1) Comprobar existencia
-            const qCheck = 'SELECT id_usuario FROM usuario WHERE usuario_mail = ? AND activo_usuario = 1';
-            connection.query(qCheck, [usuario_mail], (errCheck, resultsCheck) => {
-                if (errCheck) {
-                    return connection.rollback(() => {
-                        console.error('Error en query comprobación usuario:', errCheck);
-                        res.status(500).json({ error: 'Error al crear el usuario', details: errCheck.message });
-                    });
+            conn.beginTransaction((err) => {
+                if (err) {
+                    conn.release();
+                    console.error('Error al iniciar transacción:', err);
+                    return res.status(500).json({ error: 'Error al iniciar transacción' });
                 }
 
-                if (resultsCheck.length > 0) {
-                    return connection.rollback(() => {
-                        return res.status(400).json({ error: 'El correo electrónico ya está registrado' });
-                    });
-                }
-
-                // 2) Insertar usuario
-                const qInsert = 'INSERT INTO usuario (usuario_nombre, usuario_mail, usuario_contrasena, administrador) VALUES (?, ?, ?, ?)';
-                connection.query(qInsert, [usuario_nombre, usuario_mail, hashedPassword, isAdmin], (errInsert, resultsInsert) => {
-                    if (errInsert) {
-                        return connection.rollback(() => {
-                            console.error('Error al insertar usuario:', errInsert);
-                            res.status(500).json({ error: 'Error al crear el usuario', details: errInsert.message });
+                // 1) Comprobar existencia
+                const qCheck = 'SELECT id_usuario FROM usuario WHERE usuario_mail = ? AND activo_usuario = 1';
+                conn.query(qCheck, [usuario_mail], (errCheck, resultsCheck) => {
+                    if (errCheck) {
+                        return conn.rollback(() => {
+                            conn.release();
+                            console.error('Error en query comprobación usuario:', errCheck);
+                            res.status(500).json({ error: 'Error al crear el usuario', details: errCheck.message });
                         });
                     }
 
-                    // 3) Commit
-                    connection.commit((errCommit) => {
-                        if (errCommit) {
-                            return connection.rollback(() => {
-                                console.error('Error al confirmar transacción:', errCommit);
-                                res.status(500).json({ error: 'Error al confirmar la creación' });
+                    if (resultsCheck.length > 0) {
+                        return conn.rollback(() => {
+                            conn.release();
+                            return res.status(400).json({ error: 'El correo electrónico ya está registrado' });
+                        });
+                    }
+
+                    // 2) Insertar usuario
+                    const qInsert = 'INSERT INTO usuario (usuario_nombre, usuario_mail, usuario_contrasena, administrador) VALUES (?, ?, ?, ?)';
+                    conn.query(qInsert, [usuario_nombre, usuario_mail, hashedPassword, isAdmin], (errInsert, resultsInsert) => {
+                        if (errInsert) {
+                            return conn.rollback(() => {
+                                conn.release();
+                                console.error('Error al insertar usuario:', errInsert);
+                                res.status(500).json({ error: 'Error al crear el usuario', details: errInsert.message });
                             });
                         }
 
-                        res.status(201).json({ id: resultsInsert.insertId, usuario_nombre, usuario_mail, administrador: !!isAdmin });
+                        // 3) Commit
+                        conn.commit((errCommit) => {
+                            if (errCommit) {
+                                return conn.rollback(() => {
+                                    conn.release();
+                                    console.error('Error al confirmar transacción:', errCommit);
+                                    res.status(500).json({ error: 'Error al confirmar la creación' });
+                                });
+                            }
+                            
+                            conn.release();
+                            res.status(201).json({ id: resultsInsert.insertId, usuario_nombre, usuario_mail, administrador: !!isAdmin });
+                        });
                     });
                 });
             });

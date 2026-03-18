@@ -43,56 +43,65 @@ const CreateEquipo = (req, res) => {
     }
 
     // Iniciar transacción para asegurar atomicidad
-    connection.beginTransaction((err) => {
-        if (err) {
-            return res.status(500).json({ error: 'Error al iniciar transacción' });
-        }
+    connection.getConnection((err, conn) => {
+        if (err) return res.status(500).json({ error: 'Error al obtener conexión' });
 
-        // 1. Crear el equipo
-        const queryEquipo = 'INSERT INTO equipo (nombre_equipo, logo, id_division) VALUES (?, ?, ?)';
-
-        connection.query(queryEquipo, [nombre_equipo, logo, id_division], (errorEquipo, resultsEquipo) => {
-            if (errorEquipo) {
-                return connection.rollback(() => {
-                    console.error('Error al crear equipo:', errorEquipo);
-                    res.status(500).json({ error: 'Error al crear el equipo', details: errorEquipo.message });
-                });
+        conn.beginTransaction((err) => {
+            if (err) {
+                conn.release();
+                return res.status(500).json({ error: 'Error al iniciar transacción' });
             }
 
-            const id_equipo = resultsEquipo.insertId;
+            // 1. Crear el equipo
+            const queryEquipo = 'INSERT INTO equipo (nombre_equipo, logo, id_division) VALUES (?, ?, ?)';
 
-            // 2. Crear automáticamente la clasificación con valores en 0
-            const queryClasificacion = `
-                INSERT INTO clasificacion 
-                (id_equipo, id_division, puntos, partidos_jugados, partidos_ganados, 
-                 partidos_empatados, partidos_perdidos, goles_a_favor, goles_en_contra, diferencia_goles) 
-                VALUES (?, ?, 0, 0, 0, 0, 0, 0, 0, 0)
-            `;
-
-            connection.query(queryClasificacion, [id_equipo, id_division], (errorClas, resultsClas) => {
-                if (errorClas) {
-                    return connection.rollback(() => {
-                        console.error('Error al crear clasificación automática:', errorClas);
-                        res.status(500).json({ error: 'Error al crear clasificación del equipo', details: errorClas.message });
+            conn.query(queryEquipo, [nombre_equipo, logo, id_division], (errorEquipo, resultsEquipo) => {
+                if (errorEquipo) {
+                    return conn.rollback(() => {
+                        conn.release();
+                        console.error('Error al crear equipo:', errorEquipo);
+                        res.status(500).json({ error: 'Error al crear el equipo', details: errorEquipo.message });
                     });
                 }
 
-                // 3. Confirmar transacción
-                connection.commit((errorCommit) => {
-                    if (errorCommit) {
-                        return connection.rollback(() => {
-                            console.error('Error al confirmar transacción:', errorCommit);
-                            res.status(500).json({ error: 'Error al confirmar la creación' });
+                const id_equipo = resultsEquipo.insertId;
+
+                // 2. Crear automáticamente la clasificación con valores en 0
+                const queryClasificacion = `
+                    INSERT INTO clasificacion 
+                    (id_equipo, id_division, puntos, partidos_jugados, partidos_ganados, 
+                     partidos_empatados, partidos_perdidos, goles_a_favor, goles_en_contra, diferencia_goles) 
+                    VALUES (?, ?, 0, 0, 0, 0, 0, 0, 0, 0)
+                `;
+
+                conn.query(queryClasificacion, [id_equipo, id_division], (errorClas, resultsClas) => {
+                    if (errorClas) {
+                        return conn.rollback(() => {
+                            conn.release();
+                            console.error('Error al crear clasificación automática:', errorClas);
+                            res.status(500).json({ error: 'Error al crear clasificación del equipo', details: errorClas.message });
                         });
                     }
 
-                    // 4. Devolver el equipo creado exitosamente
-                    res.status(201).json({
-                        id_equipo: id_equipo,
-                        nombre_equipo,
-                        logo,
-                        id_division,
-                        mensaje: 'Equipo y clasificación creados exitosamente'
+                    // 3. Confirmar transacción
+                    conn.commit((errorCommit) => {
+                        if (errorCommit) {
+                            return conn.rollback(() => {
+                                conn.release();
+                                console.error('Error al confirmar transacción:', errorCommit);
+                                res.status(500).json({ error: 'Error al confirmar la creación' });
+                            });
+                        }
+
+                        conn.release();
+                        // 4. Devolver el equipo creado exitosamente
+                        res.status(201).json({
+                            id_equipo: id_equipo,
+                            nombre_equipo,
+                            logo,
+                            id_division,
+                            mensaje: 'Equipo y clasificación creados exitosamente'
+                        });
                     });
                 });
             });
@@ -119,36 +128,42 @@ const deleteEquipo = (req, res) => {
     const { id } = req.params;
 
     // Usamos transacción para asegurarnos que la clasificación también se marque como inactiva
-    connection.beginTransaction(err => {
-        if (err) {
-            console.error('Error iniciando transacción:', err);
-            return res.status(500).json({ error: 'Error al iniciar la operación' });
-        }
+    connection.getConnection((err, conn) => {
+        if (err) return res.status(500).json({ error: 'Error al obtener conexión' });
 
-        const q1 = 'UPDATE equipo SET activo_equipo = 0 WHERE id_equipo = ?';
-        connection.query(q1, [id], (error, results) => {
-            if (error) {
-                console.error('Error al actualizar equipo:', error);
-                return connection.rollback(() => res.status(500).json({ error: 'Error al eliminar el equipo', details: error.message }));
-            }
-            if (results.affectedRows === 0) {
-                return connection.rollback(() => res.status(404).json({ error: 'Equipo no encontrado' }));
+        conn.beginTransaction(err => {
+            if (err) {
+                conn.release();
+                console.error('Error iniciando transacción:', err);
+                return res.status(500).json({ error: 'Error al iniciar la operación' });
             }
 
-            // Marcar la clasificación relacionada como inactiva (soft delete)
-            const q2 = 'UPDATE clasificacion SET activo_clasificacion = 0 WHERE id_equipo = ?';
-            connection.query(q2, [id], (error2) => {
-                if (error2) {
-                    console.error('Error al actualizar clasificación:', error2);
-                    return connection.rollback(() => res.status(500).json({ error: 'Error al actualizar clasificación', details: error2.message }));
+            const q1 = 'UPDATE equipo SET activo_equipo = 0 WHERE id_equipo = ?';
+            conn.query(q1, [id], (error, results) => {
+                if (error) {
+                    console.error('Error al actualizar equipo:', error);
+                    return conn.rollback(() => { conn.release(); res.status(500).json({ error: 'Error al eliminar el equipo', details: error.message }); });
+                }
+                if (results.affectedRows === 0) {
+                    return conn.rollback(() => { conn.release(); res.status(404).json({ error: 'Equipo no encontrado' }); });
                 }
 
-                connection.commit(commitErr => {
-                    if (commitErr) {
-                        console.error('Error al confirmar transacción:', commitErr);
-                        return connection.rollback(() => res.status(500).json({ error: 'Error al finalizar la operación', details: commitErr.message }));
+                // Marcar la clasificación relacionada como inactiva (soft delete)
+                const q2 = 'UPDATE clasificacion SET activo_clasificacion = 0 WHERE id_equipo = ?';
+                conn.query(q2, [id], (error2) => {
+                    if (error2) {
+                        console.error('Error al actualizar clasificación:', error2);
+                        return conn.rollback(() => { conn.release(); res.status(500).json({ error: 'Error al actualizar clasificación', details: error2.message }); });
                     }
-                    res.status(200).json({ message: 'Equipo y clasificación marcados como inactivos correctamente' });
+
+                    conn.commit(commitErr => {
+                        if (commitErr) {
+                            console.error('Error al confirmar transacción:', commitErr);
+                            return conn.rollback(() => { conn.release(); res.status(500).json({ error: 'Error al finalizar la operación', details: commitErr.message }); });
+                        }
+                        conn.release();
+                        res.status(200).json({ message: 'Equipo y clasificación marcados como inactivos correctamente' });
+                    });
                 });
             });
         });

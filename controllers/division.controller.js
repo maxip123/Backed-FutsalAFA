@@ -71,70 +71,76 @@ const ResetDivision = (req, res) => {
     const { id } = req.params; // id_division
 
     // Usamos transacción para que todos los cambios sean atómicos
-    connection.beginTransaction(err => {
-        if (err) {
-            console.error('Error iniciando transacción:', err);
-            return res.status(500).json({ error: 'Error al iniciar la operación' });
-        }
+    connection.getConnection((err, conn) => {
+        if (err) return res.status(500).json({ error: 'Error al obtener conexión' });
 
-        // 1) Reset clasificacion for the division
-        const q1 = `
-            UPDATE clasificacion
-            SET puntos = 0,
-                partidos_jugados = 0,
-                partidos_ganados = 0,
-                partidos_empatados = 0,
-                partidos_perdidos = 0,
-                goles_a_favor = 0,
-                goles_en_contra = 0,
-                diferencia_goles = 0
-            WHERE id_division = ?
-        `;
-
-        connection.query(q1, [id], (err1) => {
-            if (err1) {
-                console.error('Error reseteando clasificacion:', err1);
-                return connection.rollback(() => res.status(500).json({ error: 'Error al resetear clasificación', details: err1.message }));
+        conn.beginTransaction(err => {
+            if (err) {
+                conn.release();
+                console.error('Error iniciando transacción:', err);
+                return res.status(500).json({ error: 'Error al iniciar la operación' });
             }
 
-            // 2) Reset jugadores (goles y tarjetas) for teams in the division
-            const q2 = `
-                UPDATE jugador j
-                INNER JOIN equipo e ON j.id_equipo = e.id_equipo
-                SET j.goles = 0,
-                    j.tarjetas_amarillas = 0,
-                    j.tarjetas_rojas = 0
-                WHERE e.id_division = ?
+            // 1) Reset clasificacion for the division
+            const q1 = `
+                UPDATE clasificacion
+                SET puntos = 0,
+                    partidos_jugados = 0,
+                    partidos_ganados = 0,
+                    partidos_empatados = 0,
+                    partidos_perdidos = 0,
+                    goles_a_favor = 0,
+                    goles_en_contra = 0,
+                    diferencia_goles = 0
+                WHERE id_division = ?
             `;
 
-            connection.query(q2, [id], (err2) => {
-                if (err2) {
-                    console.error('Error reseteando jugadores:', err2);
-                    return connection.rollback(() => res.status(500).json({ error: 'Error al resetear jugadores', details: err2.message }));
+            conn.query(q1, [id], (err1) => {
+                if (err1) {
+                    console.error('Error reseteando clasificacion:', err1);
+                    return conn.rollback(() => { conn.release(); res.status(500).json({ error: 'Error al resetear clasificación', details: err1.message }); });
                 }
 
-                // 3) Reset cuerpo_tecnico tarjetas for teams in the division
-                const q3 = `
-                    UPDATE cuerpo_tecnico ct
-                    INNER JOIN equipo e ON ct.id_equipo = e.id_equipo
-                    SET ct.tarjetas_amarillas = 0,
-                        ct.tarjetas_rojas = 0
+                // 2) Reset jugadores (goles y tarjetas) for teams in the division
+                const q2 = `
+                    UPDATE jugador j
+                    INNER JOIN equipo e ON j.id_equipo = e.id_equipo
+                    SET j.goles = 0,
+                        j.tarjetas_amarillas = 0,
+                        j.tarjetas_rojas = 0
                     WHERE e.id_division = ?
                 `;
 
-                connection.query(q3, [id], (err3) => {
-                    if (err3) {
-                        console.error('Error reseteando cuerpo técnico:', err3);
-                        return connection.rollback(() => res.status(500).json({ error: 'Error al resetear cuerpo técnico', details: err3.message }));
+                conn.query(q2, [id], (err2) => {
+                    if (err2) {
+                        console.error('Error reseteando jugadores:', err2);
+                        return conn.rollback(() => { conn.release(); res.status(500).json({ error: 'Error al resetear jugadores', details: err2.message }); });
                     }
 
-                    // Si todo OK, commit
-                    connection.commit(commitErr => {
-                        if (commitErr) {
-                            console.error('Error al commitear transacción:', commitErr);
-                            return connection.rollback(() => res.status(500).json({ error: 'Error al finalizar la operación', details: commitErr.message }));
+                    // 3) Reset cuerpo_tecnico tarjetas for teams in the division
+                    const q3 = `
+                        UPDATE cuerpo_tecnico ct
+                        INNER JOIN equipo e ON ct.id_equipo = e.id_equipo
+                        SET ct.tarjetas_amarillas = 0,
+                            ct.tarjetas_rojas = 0
+                        WHERE e.id_division = ?
+                    `;
+
+                    conn.query(q3, [id], (err3) => {
+                        if (err3) {
+                            console.error('Error reseteando cuerpo técnico:', err3);
+                            return conn.rollback(() => { conn.release(); res.status(500).json({ error: 'Error al resetear cuerpo técnico', details: err3.message }); });
                         }
-                        res.status(200).json({ message: 'División reseteada correctamente' });
+
+                        // Si todo OK, commit
+                        conn.commit(commitErr => {
+                            if (commitErr) {
+                                console.error('Error al commitear transacción:', commitErr);
+                                return conn.rollback(() => { conn.release(); res.status(500).json({ error: 'Error al finalizar la operación', details: commitErr.message }); });
+                            }
+                            conn.release();
+                            res.status(200).json({ message: 'División reseteada correctamente' });
+                        });
                     });
                 });
             });
