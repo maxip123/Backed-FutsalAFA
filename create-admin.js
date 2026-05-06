@@ -5,7 +5,7 @@ require('dotenv').config();
 async function createAdminUser() {
     try {
         // Contraseña del admin
-        const plainPassword = 'admin123'; // Cambia esto por la contraseña que quieras
+        const plainPassword = 'Admin123?'; // Cambia esto por la contraseña que quieras
 
         // Hashear la contraseña
         const hashedPassword = await hashPassword(plainPassword);
@@ -13,7 +13,7 @@ async function createAdminUser() {
         // Datos del usuario admin
         const adminData = {
             usuario_nombre: 'Administrador',
-            usuario_mail: 'admin@futsalafa.com',
+            usuario_mail: 'admin1@futsalafa.com',
             usuario_contrasena: hashedPassword,
             administrador: 1,
             activo_usuario: 1

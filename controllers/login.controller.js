@@ -23,6 +23,11 @@ const login = (req, res) => {
 
         const user = results[0];
 
+        if (!user.habilitado) {
+            console.log('Usuario deshabilitado:', usuario_mail);
+            return res.status(403).json({ error: 'Tu cuenta ha sido deshabilitada por un administrador.' });
+        }
+
         try {
             const isMatch = await comparePasswords(usuario_contrasena, user.usuario_contrasena);
             console.log('Password match:', isMatch);

@@ -121,6 +121,7 @@ const UpdatePartido = (req, res) => {
         if (results.affectedRows === 0) {
             return res.status(404).json({ error: 'Partido no encontrado' });
         }
+
         res.status(200).json({
             id_partido: id,
             fecha_partido,
