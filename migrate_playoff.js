@@ -1,14 +1,7 @@
 const { connection } = require('./config/database');
-
 const runMigration = async () => {
     try {
         console.log('Iniciando migración de la tabla llave_playoff...');
-
-        // 1. Drop foreign key to partido if exists (MySQL generates a name like llave_playoff_ibfk_x)
-        // First, we need to find the exact FK name. This can be tricky. Let's just drop the column if we can.
-        // Wait, dropping a column with a foreign key constraint might fail.
-        
-        // Let's use a workaround to drop the foreign key dynamically.
         const queryFK = `
             SELECT CONSTRAINT_NAME 
             FROM information_schema.KEY_COLUMN_USAGE 
@@ -16,7 +9,6 @@ const runMigration = async () => {
               AND COLUMN_NAME = 'id_partido' 
               AND TABLE_SCHEMA = DATABASE();
         `;
-        
         connection.query(queryFK, (err, results) => {
             if (err) throw err;
             if (results && results.length > 0) {
@@ -30,9 +22,7 @@ const runMigration = async () => {
                 alterColumns();
             }
         });
-
         function alterColumns() {
-            // 2. Drop id_partido and add new columns
             const queryAlter = `
                 ALTER TABLE llave_playoff
                 DROP COLUMN id_partido,
@@ -54,5 +44,4 @@ const runMigration = async () => {
         process.exit(1);
     }
 };
-
 runMigration();

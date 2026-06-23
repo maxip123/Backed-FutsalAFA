@@ -14,34 +14,23 @@ const routeUsuario = require('./routes/usuario.routes');
 const routeLogin = require('./routes/login.routes');
 const routerEquipo = require('./routes/equipo.routes');
 const routerEmail = require('./routes/email.routes');
-const routerHistorial = require('./routes/historial.routes');
 const routerPlayoff = require('./routes/playoff.routes');
-
 dotenv.config();
-
 const app = express();
 app.use(express.json());
 app.use(morgan('dev'));
-// Configurar CORS para desarrollo y producción
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const allowedOrigins = [FRONTEND_URL];
-
-// En producción, también permitir variantes como https
 if (process.env.NODE_ENV === 'production' && FRONTEND_URL.startsWith('http://')) {
     allowedOrigins.push(FRONTEND_URL.replace('http://', 'https://'));
 }
-
 console.log('Allowed origins:', allowedOrigins);
-
 app.use(cors({
     origin: function (origin, callback) {
-        // Permitir requests sin origin (e.g., mobile apps, Postman)
         if (!origin) return callback(null, true);
-
         if (allowedOrigins.includes(origin)) {
             return callback(null, true);
         }
-
         console.warn('Origin blocked:', origin);
         return callback(new Error('Origin no autorizado'), false);
     },
@@ -49,8 +38,6 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
-// Remover middleware restrictivo que bloquea requests sin origin
 app.use(helmet());
 app.use('/api/clasificacion', routeClasificacion);
 app.use('/api/cuerpo_tecnico', routeCuerpoTecnico);
@@ -62,18 +49,11 @@ app.use('/api/usuario', routeUsuario);
 app.use('/api/login', routeLogin);
 app.use('/api/equipo', routerEquipo);
 app.use('/api/email', routerEmail);
-app.use('/api/historial', routerHistorial);
 app.use('/api/playoff', routerPlayoff);
-
 app.get("/", (req, res) => {
     res.send(" Backend Futsal AFA funcionando correctamente")
 })
-
-
-
 const PORT = process.env.PORT || 8000
-
-// Verificar que el pool puede conectarse a la DB antes de iniciar el servidor
 connection.getConnection((err, conn) => {
     if (err) {
         console.error('Error al conectar con la base de datos:', err.message);
@@ -81,7 +61,6 @@ connection.getConnection((err, conn) => {
     }
     console.log('Conectado a MySQL correctamente');
     conn.release();
-
     app.listen(PORT, () => {
         console.log('Escuchando en el puerto ' + PORT);
     });

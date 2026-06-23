@@ -1,29 +1,1 @@
-const jwt = require('jsonwebtoken');
-
-const JWT_SECRET = process.env.JWT_SECRET;
-
-const autenticarToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    if (!token) {
-        return res.status(401).json({ error: 'Token no proporcionado' });
-    }
-
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) {
-
-            if (err.name === 'TokenExpiredError') {
-                return res.status(401).json({ error: 'Token expirado' });
-            }
-            return res.status(403).json({ error: 'Token no válido' });
-        }
-
-
-        req.user = user;
-        next();
-    });
-};
-
-module.exports = {
-    autenticarToken
-};
+const jwt = require('jsonwebtoken');const JWT_SECRET = process.env.JWT_SECRET;const autenticarToken = (req, res, next) => {    const authHeader = req.headers['authorization'];    const token = authHeader && authHeader.split(' ')[1];    if (!token) {        return res.status(401).json({ error: 'Token no proporcionado' });    }    jwt.verify(token, JWT_SECRET, (err, user) => {        if (err) {            if (err.name === 'TokenExpiredError') {                return res.status(401).json({ error: 'Token expirado' });            }            return res.status(403).json({ error: 'Token no válido' });        }        req.user = user;        next();    });};module.exports = {    autenticarToken};
