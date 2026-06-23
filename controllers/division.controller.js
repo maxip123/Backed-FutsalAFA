@@ -23,34 +23,76 @@ const GetDivisionById = (req, res) => {
         res.status(200).json(results[0]);
     });
 };
-const CreateDivision = (req, res) => {
-    const { nombre_division, masculino, femenino } = req.body;
+
+const CreateDivision = async (req, res) => {
+    const { nombre_division, masculino, femenino, cloned_from_id, fecha_inicio, fecha_fin } = req.body;
     if (!nombre_division) {
         return res.status(400).json({ error: 'nombre_division es requerido' });
     }
-    const query = 'INSERT INTO division (Nombre_division, masculino, femenino) VALUES (?, ?, ?)';
-    connection.query(query, [nombre_division, masculino, femenino], (error, results) => {
-        if (error) {
-            return res.status(500).json({ error: 'Error al crear la división' });
+    try {
+        const promisePool = connection.promise();
+        const conn = await promisePool.getConnection();
+        await conn.beginTransaction();
+        try {
+            const queryDiv = 'INSERT INTO division (Nombre_division, masculino, femenino, fecha_inicio, fecha_fin) VALUES (?, ?, ?, ?, ?)';
+            const [divResults] = await conn.query(queryDiv, [nombre_division, masculino, femenino, fecha_inicio || null, fecha_fin || null]);
+            const newDivId = divResults.insertId;
+            if (cloned_from_id) {
+                const [equipos] = await conn.query('SELECT * FROM equipo WHERE id_division = ? AND activo_equipo = 1', [cloned_from_id]);
+                for (const equipo of equipos) {
+                    const qEq = 'INSERT INTO equipo (nombre_equipo, logo, id_division) VALUES (?, ?, ?)';
+                    const [eqRes] = await conn.query(qEq, [equipo.nombre_equipo, equipo.logo, newDivId]);
+                    const newEqId = eqRes.insertId;
+                    const tClas = `
+                        INSERT INTO clasificacion 
+                        (id_equipo, id_division, puntos, partidos_jugados, partidos_ganados, 
+                        partidos_empatados, partidos_perdidos, goles_a_favor, goles_en_contra, diferencia_goles) 
+                        VALUES (?, ?, 0, 0, 0, 0, 0, 0, 0, 0)
+                    `;
+                    await conn.query(tClas, [newEqId, newDivId]);
+                    const [jugadores] = await conn.query('SELECT * FROM jugador WHERE id_equipo = ? AND activo_jugador = 1', [equipo.id_equipo]);
+                    if (jugadores.length > 0) {
+                        const jugValues = jugadores.map(j => [j.jugador_nombre, j.DNI_jugador, j.fecha_nac, 0, 0, 0, newEqId]);
+                        await conn.query('INSERT INTO jugador (jugador_nombre, DNI_jugador, fecha_nac, goles, tarjetas_amarillas, tarjetas_rojas, id_equipo) VALUES ?', [jugValues]);
+                    }
+                    const [cuerpo] = await conn.query('SELECT * FROM cuerpo_tecnico WHERE id_equipo = ? AND activo_cuerpo_tecnico = 1', [equipo.id_equipo]);
+                    if (cuerpo.length > 0) {
+                        const ctValues = cuerpo.map(c => [c.cuerpo_tecnico_nombre, c.DNI_cuerpo_tecnico, 0, 0, newEqId]);
+                        await conn.query('INSERT INTO cuerpo_tecnico (cuerpo_tecnico_nombre, DNI_cuerpo_tecnico, tarjetas_amarillas, tarjetas_rojas, id_equipo) VALUES ?', [ctValues]);
+                    }
+                }
+            }
+            await conn.commit();
+            conn.release();
+            res.status(201).json({ id_division: newDivId, nombre_division, masculino, femenino });
+        } catch (txnError) {
+            await conn.rollback();
+            conn.release();
+            console.error('CreateDivision Txn Error:', txnError);
+            res.status(500).json({ error: 'Error al crear la división', details: txnError.message });
         }
-        res.status(201).json({ id_division: results.insertId, nombre_division, masculino, femenino });
-    });
+    } catch (dbError) {
+        console.error('CreateDivision DB Connection Error:', dbError);
+        return res.status(500).json({ error: 'Error de base de datos' });
+    }
 };
 
 const UpdateDivision = (req, res) => {
     const { id } = req.params;
-    const { nombre_division, masculino, femenino } = req.body;
-    const query = 'UPDATE division SET Nombre_division = ?, masculino = ?, femenino = ? WHERE id_division = ?';
-    connection.query(query, [nombre_division, masculino, femenino, id], (error, results) => {
+    const { nombre_division, masculino, femenino, terminado, fecha_inicio, fecha_fin } = req.body;
+    const isTerminado = terminado ? 1 : 0;
+    const query = 'UPDATE division SET Nombre_division = ?, masculino = ?, femenino = ?, terminado = ?, fecha_inicio = ?, fecha_fin = ? WHERE id_division = ?';
+    connection.query(query, [nombre_division, masculino, femenino, isTerminado, fecha_inicio || null, fecha_fin || null, id], (error, results) => {
         if (error) {
             return res.status(500).json({ error: 'Error al actualizar la división' });
         }
         if (results.affectedRows === 0) {
             return res.status(404).json({ error: 'División no encontrada' });
         }
-        res.status(200).json({ id_division: id, nombre_division, masculino, femenino });
+        res.status(200).json({ id_division: id, nombre_division, masculino, femenino, terminado: isTerminado, fecha_inicio: fecha_inicio || null, fecha_fin: fecha_fin || null });
     });
 };
+
 const deleteDivision = (req, res) => {
     const { id } = req.params;
     const query = 'UPDATE division SET activo_division = 0 WHERE id_division = ?';
@@ -65,79 +107,90 @@ const deleteDivision = (req, res) => {
     });
 };
 
-// ResetDivision: pone en 0 todas las estadísticas de la clasificación
-// y las estadísticas de jugadores y cuerpo técnico para una división
-const ResetDivision = (req, res) => {
-    const { id } = req.params; // id_division
-
-    // Usamos transacción para que todos los cambios sean atómicos
-    connection.beginTransaction(err => {
-        if (err) {
-            console.error('Error iniciando transacción:', err);
-            return res.status(500).json({ error: 'Error al iniciar la operación' });
-        }
-
-        // 1) Reset clasificacion for the division
-        const q1 = `
-            UPDATE clasificacion
-            SET puntos = 0,
-                partidos_jugados = 0,
-                partidos_ganados = 0,
-                partidos_empatados = 0,
-                partidos_perdidos = 0,
-                goles_a_favor = 0,
-                goles_en_contra = 0,
-                diferencia_goles = 0
-            WHERE id_division = ?
-        `;
-
-        connection.query(q1, [id], (err1) => {
-            if (err1) {
-                console.error('Error reseteando clasificacion:', err1);
-                return connection.rollback(() => res.status(500).json({ error: 'Error al resetear clasificación', details: err1.message }));
+const FinalizarDivision = (req, res) => {
+    const { id } = req.params;
+    const { id_equipo_campeon } = req.body;
+    if (!id_equipo_campeon) {
+        return res.status(400).json({ error: 'id_equipo_campeon es requerido' });
+    }
+    connection.getConnection((err, conn) => {
+        if (err) return res.status(500).json({ error: 'Error al obtener conexión' });
+        conn.beginTransaction(txErr => {
+            if (txErr) {
+                conn.release();
+                return res.status(500).json({ error: 'Error al iniciar la transacción' });
             }
-
-            // 2) Reset jugadores (goles y tarjetas) for teams in the division
-            const q2 = `
-                UPDATE jugador j
-                INNER JOIN equipo e ON j.id_equipo = e.id_equipo
-                SET j.goles = 0,
-                    j.tarjetas_amarillas = 0,
-                    j.tarjetas_rojas = 0
-                WHERE e.id_division = ?
-            `;
-
-            connection.query(q2, [id], (err2) => {
-                if (err2) {
-                    console.error('Error reseteando jugadores:', err2);
-                    return connection.rollback(() => res.status(500).json({ error: 'Error al resetear jugadores', details: err2.message }));
-                }
-
-                // 3) Reset cuerpo_tecnico tarjetas for teams in the division
-                const q3 = `
-                    UPDATE cuerpo_tecnico ct
-                    INNER JOIN equipo e ON ct.id_equipo = e.id_equipo
-                    SET ct.tarjetas_amarillas = 0,
-                        ct.tarjetas_rojas = 0
-                    WHERE e.id_division = ?
-                `;
-
-                connection.query(q3, [id], (err3) => {
-                    if (err3) {
-                        console.error('Error reseteando cuerpo técnico:', err3);
-                        return connection.rollback(() => res.status(500).json({ error: 'Error al resetear cuerpo técnico', details: err3.message }));
+            conn.query(
+                'SELECT * FROM equipo WHERE id_equipo = ? AND activo_equipo = 1',
+                [id_equipo_campeon],
+                (err1, equipos) => {
+                    if (err1 || equipos.length === 0) {
+                        return conn.rollback(() => {
+                            conn.release();
+                            res.status(404).json({ error: 'Equipo campeón no encontrado' });
+                        });
                     }
-
-                    // Si todo OK, commit
-                    connection.commit(commitErr => {
-                        if (commitErr) {
-                            console.error('Error al commitear transacción:', commitErr);
-                            return connection.rollback(() => res.status(500).json({ error: 'Error al finalizar la operación', details: commitErr.message }));
+                    const campeon = equipos[0];
+                    const qGoleador = `
+                        SELECT j.id_jugador, j.jugador_nombre, j.goles, e.nombre_equipo
+                        FROM jugador j
+                        JOIN equipo e ON j.id_equipo = e.id_equipo
+                        WHERE e.id_division = ? AND j.activo_jugador = 1
+                        ORDER BY j.goles DESC
+                        LIMIT 1
+                    `;
+                    conn.query(qGoleador, [id], (err2, goleadores) => {
+                        if (err2) {
+                            return conn.rollback(() => {
+                                conn.release();
+                                res.status(500).json({ error: 'Error al obtener goleador', details: err2.message });
+                            });
                         }
-                        res.status(200).json({ message: 'División reseteada correctamente' });
+                        const goleador = goleadores[0] || null;
+                        const qUpdate = `
+                            UPDATE division SET
+                                terminado              = 1,
+                                anio_torneo            = YEAR(CURDATE()),
+                                id_equipo_campeon      = ?,
+                                nombre_campeon         = ?,
+                                logo_campeon           = ?,
+                                id_jugador_goleador    = ?,
+                                nombre_goleador        = ?,
+                                goles_goleador         = ?,
+                                nombre_equipo_goleador = ?
+                            WHERE id_division = ?
+                        `;
+                        const updateValues = [
+                            campeon.id_equipo,
+                            campeon.nombre_equipo,
+                            campeon.logo || null,
+                            goleador ? goleador.id_jugador : null,
+                            goleador ? goleador.jugador_nombre : 'Sin goleador',
+                            goleador ? goleador.goles : 0,
+                            goleador ? goleador.nombre_equipo : '-',
+                            id
+                        ];
+                        conn.query(qUpdate, updateValues, (err3) => {
+                            if (err3) {
+                                return conn.rollback(() => {
+                                    conn.release();
+                                    res.status(500).json({ error: 'Error al finalizar el torneo', details: err3.message });
+                                });
+                            }
+                            conn.commit(commitErr => {
+                                if (commitErr) {
+                                    return conn.rollback(() => {
+                                        conn.release();
+                                        res.status(500).json({ error: 'Error al confirmar la operación' });
+                                    });
+                                }
+                                conn.release();
+                                res.status(200).json({ message: 'Torneo finalizado correctamente' });
+                            });
+                        });
                     });
-                });
-            });
+                }
+            );
         });
     });
 };
@@ -148,5 +201,5 @@ module.exports = {
     CreateDivision,
     UpdateDivision,
     deleteDivision,
-    ResetDivision
+    FinalizarDivision
 };

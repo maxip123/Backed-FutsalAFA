@@ -1,13 +1,1 @@
-const express = require('express');
-const router = express.Router();
-const {GetAllSedes, GetSedeById, CreateSede, UpdateSede, deleteSede} = require('../controllers/sede.controller');
-const { autenticarToken } = require('../Middleware/auth.middleware');
-
-// Rutas para Sede
-router.get('/', GetAllSedes);
-router.get('/:id', GetSedeById);
-router.post('/', autenticarToken, CreateSede);
-router.put('/:id', autenticarToken, UpdateSede);
-router.delete('/:id', autenticarToken, deleteSede);
-
-module.exports = router;
+const express = require('express');const router = express.Router();const {GetAllSedes, GetSedeById, CreateSede, UpdateSede, deleteSede} = require('../controllers/sede.controller');const { autenticarToken } = require('../Middleware/auth.middleware');router.get('/', GetAllSedes);router.get('/:id', GetSedeById);router.post('/', autenticarToken, CreateSede);router.put('/:id', autenticarToken, UpdateSede);router.delete('/:id', autenticarToken, deleteSede);module.exports = router;
