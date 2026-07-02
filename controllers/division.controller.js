@@ -1,7 +1,19 @@
 const { connection } = require('../config/database');
 
 const GetAllDivisions = (req, res) => {
-    const query = 'SELECT * FROM division WHERE activo_division = 1';
+    const query = `
+        SELECT d.*,
+               ec.nombre_equipo AS nombre_campeon,
+               ec.logo          AS logo_campeon,
+               j.jugador_nombre AS nombre_goleador,
+               j.goles          AS goles_goleador,
+               eg.nombre_equipo AS nombre_equipo_goleador
+        FROM division d
+        LEFT JOIN equipo ec  ON d.id_equipo_campeon   = ec.id_equipo
+        LEFT JOIN jugador j  ON d.id_jugador_goleador = j.id_jugador
+        LEFT JOIN equipo eg  ON j.id_equipo           = eg.id_equipo
+        WHERE d.activo_division = 1
+    `;
     connection.query(query, (error, results) => {
         if (error) {
             return res.status(500).json({ error: 'Error al obtener las divisiones' });
@@ -12,7 +24,19 @@ const GetAllDivisions = (req, res) => {
 
 const GetDivisionById = (req, res) => {
     const { id } = req.params;
-    const query = 'SELECT * FROM division WHERE id_division = ? AND activo_division = 1';
+    const query = `
+        SELECT d.*,
+               ec.nombre_equipo AS nombre_campeon,
+               ec.logo          AS logo_campeon,
+               j.jugador_nombre AS nombre_goleador,
+               j.goles          AS goles_goleador,
+               eg.nombre_equipo AS nombre_equipo_goleador
+        FROM division d
+        LEFT JOIN equipo ec  ON d.id_equipo_campeon   = ec.id_equipo
+        LEFT JOIN jugador j  ON d.id_jugador_goleador = j.id_jugador
+        LEFT JOIN equipo eg  ON j.id_equipo           = eg.id_equipo
+        WHERE d.id_division = ? AND d.activo_division = 1
+    `;
     connection.query(query, [id], (error, results) => {
         if (error) {
             return res.status(500).json({ error: 'Error al obtener la división' });
@@ -46,8 +70,8 @@ const CreateDivision = async (req, res) => {
                     const tClas = `
                         INSERT INTO clasificacion 
                         (id_equipo, id_division, puntos, partidos_jugados, partidos_ganados, 
-                        partidos_empatados, partidos_perdidos, goles_a_favor, goles_en_contra, diferencia_goles) 
-                        VALUES (?, ?, 0, 0, 0, 0, 0, 0, 0, 0)
+                        partidos_empatados, partidos_perdidos, goles_a_favor, goles_en_contra) 
+                        VALUES (?, ?, 0, 0, 0, 0, 0, 0, 0)
                     `;
                     await conn.query(tClas, [newEqId, newDivId]);
                     const [jugadores] = await conn.query('SELECT * FROM jugador WHERE id_equipo = ? AND activo_jugador = 1', [equipo.id_equipo]);
@@ -130,9 +154,8 @@ const FinalizarDivision = (req, res) => {
                             res.status(404).json({ error: 'Equipo campeón no encontrado' });
                         });
                     }
-                    const campeon = equipos[0];
                     const qGoleador = `
-                        SELECT j.id_jugador, j.jugador_nombre, j.goles, e.nombre_equipo
+                        SELECT j.id_jugador
                         FROM jugador j
                         JOIN equipo e ON j.id_equipo = e.id_equipo
                         WHERE e.id_division = ? AND j.activo_jugador = 1
@@ -149,25 +172,15 @@ const FinalizarDivision = (req, res) => {
                         const goleador = goleadores[0] || null;
                         const qUpdate = `
                             UPDATE division SET
-                                terminado              = 1,
-                                anio_torneo            = YEAR(CURDATE()),
-                                id_equipo_campeon      = ?,
-                                nombre_campeon         = ?,
-                                logo_campeon           = ?,
-                                id_jugador_goleador    = ?,
-                                nombre_goleador        = ?,
-                                goles_goleador         = ?,
-                                nombre_equipo_goleador = ?
+                                terminado           = 1,
+                                anio_torneo         = YEAR(CURDATE()),
+                                id_equipo_campeon   = ?,
+                                id_jugador_goleador = ?
                             WHERE id_division = ?
                         `;
                         const updateValues = [
-                            campeon.id_equipo,
-                            campeon.nombre_equipo,
-                            campeon.logo || null,
+                            id_equipo_campeon,
                             goleador ? goleador.id_jugador : null,
-                            goleador ? goleador.jugador_nombre : 'Sin goleador',
-                            goleador ? goleador.goles : 0,
-                            goleador ? goleador.nombre_equipo : '-',
                             id
                         ];
                         conn.query(qUpdate, updateValues, (err3) => {

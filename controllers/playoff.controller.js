@@ -114,7 +114,7 @@ const GetBracketByDivision = (req, res) => {
 };
 const UpdateLlave = (req, res) => {
     const { id } = req.params;
-    const { id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, estado_partido } = req.body;
+    const { id_equipo_local, id_equipo_visitante, goles_local, goles_visitante, estado_partido, id_equipo_ganador } = req.body;
     const updates = [];
     const values = [];
     if (id_equipo_local !== undefined) {
@@ -137,16 +137,51 @@ const UpdateLlave = (req, res) => {
         updates.push('estado_partido = ?');
         values.push(estado_partido !== null ? parseInt(estado_partido) : 0);
     }
+    if (id_equipo_ganador !== undefined) {
+        updates.push('id_equipo_ganador = ?');
+        values.push(id_equipo_ganador || null);
+    }
     if (updates.length === 0) {
         return res.status(400).json({ error: 'No hay datos para actualizar' });
     }
     values.push(id);
     const query = `UPDATE llave_playoff SET ${updates.join(', ')} WHERE id_llave = ?`;
-    connection.query(query, values, (error, results) => {
+    connection.query(query, values, (error) => {
         if (error) {
             return res.status(500).json({ error: 'Error al actualizar la llave', details: error.message });
         }
-        res.status(200).json({ message: 'Llave actualizada correctamente' });
+        // Si se marcó como terminado, intentar avanzar al ganador a la siguiente llave
+        const nuevoEstado = estado_partido !== undefined ? parseInt(estado_partido) : null;
+        if (nuevoEstado !== 2) {
+            return res.status(200).json({ message: 'Llave actualizada correctamente' });
+        }
+        // Leer la llave actualizada para determinar ganador y siguiente llave
+        const selectQuery = 'SELECT * FROM llave_playoff WHERE id_llave = ?';
+        connection.query(selectQuery, [id], (err2, rows) => {
+            if (err2 || rows.length === 0) {
+                return res.status(200).json({ message: 'Llave actualizada correctamente' });
+            }
+            const llave = rows[0];
+            const gl = llave.goles_local;
+            const gv = llave.goles_visitante;
+            // Determinar ganador: por goles o por id_equipo_ganador en caso de empate
+            let ganadorId = null;
+            if (gl !== null && gv !== null) {
+                if (gl > gv) ganadorId = llave.id_equipo_local;
+                else if (gv > gl) ganadorId = llave.id_equipo_visitante;
+                else ganadorId = llave.id_equipo_ganador; // empate → penales
+            }
+            if (!ganadorId || !llave.id_llave_siguiente) {
+                return res.status(200).json({ message: 'Llave actualizada correctamente' });
+            }
+            // Copiar ganador a la siguiente llave (como local o visitante)
+            const campoSiguiente = llave.es_local_siguiente ? 'id_equipo_local' : 'id_equipo_visitante';
+            const updateSig = `UPDATE llave_playoff SET ${campoSiguiente} = ? WHERE id_llave = ?`;
+            connection.query(updateSig, [ganadorId, llave.id_llave_siguiente], (err3) => {
+                if (err3) console.error('Error al avanzar ganador:', err3);
+                return res.status(200).json({ message: 'Llave actualizada correctamente' });
+            });
+        });
     });
 };
 const DeleteBracket = (req, res) => {
