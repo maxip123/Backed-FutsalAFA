@@ -174,6 +174,7 @@ const FinalizarDivision = (req, res) => {
                             UPDATE division SET
                                 terminado           = 1,
                                 anio_torneo         = YEAR(CURDATE()),
+                                fecha_fin           = COALESCE(fecha_fin, CURDATE()),
                                 id_equipo_campeon   = ?,
                                 id_jugador_goleador = ?
                             WHERE id_division = ?
